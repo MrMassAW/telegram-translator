@@ -1,0 +1,1 @@
+Extract all text visible in this image. Preserve structure (line breaks, lists) where relevant. Output ONLY the extracted text, nothing else.

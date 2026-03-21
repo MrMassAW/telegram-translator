@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TeleTranslate Bot</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@24,400,0&display=swap" rel="stylesheet"/>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#0088cc",
+            "background-light": "#f5f7f8",
+            "background-dark": "#0f1c23",
+          },
+          fontFamily: { display: ["Inter", "sans-serif"] },
+          borderRadius: { DEFAULT: "0.5rem", lg: "1rem", xl: "1.5rem", full: "9999px" },
+        },
+      },
+    };
+  </script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    details.dashboard-tip summary { list-style: none; }
+    details.dashboard-tip summary::-webkit-details-marker { display: none; }
+    details.dashboard-tip[open] summary .expand-icon { transform: rotate(180deg); }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
+  <div id="app" class="relative flex min-h-fit w-full flex-col overflow-x-hidden">
+    <input type="file" id="excluded-terms-import-file" accept=".json,application/json" class="hidden" aria-hidden="true"/>
+    <!-- View 1: Dashboard -->
+    <div id="view-dashboard" class="view flex flex-col min-h-screen">
+      <header class="sticky top-0 z-10 flex flex-col bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-center justify-between p-2 px-3">
+          <div class="flex items-center gap-2">
+            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white"><span class="material-symbols-outlined text-lg">translate</span></div>
+            <div>
+              <h1 class="text-base font-bold leading-tight tracking-tight">TeleTranslate Bot</h1>
+              <p class="text-[10px] font-medium text-slate-500 dark:text-slate-400">Status: <span class="text-green-500">Online</span></p>
+            </div>
+          </div>
+          <span id="header-credits" class="text-xs font-semibold text-primary cursor-pointer hover:underline" title="Tap to buy credits">— USD</span>
+        </div>
+        <div class="px-3 pb-2">
+          <details class="dashboard-tip rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-800/50 text-left shadow-sm">
+            <summary class="flex items-center gap-2 p-2.5 cursor-pointer select-none">
+              <span class="material-symbols-outlined text-primary text-lg shrink-0">lightbulb</span>
+              <span class="text-xs font-semibold text-slate-800 dark:text-slate-100 flex-1 leading-snug">How to create a translation pair</span>
+              <span class="material-symbols-outlined expand-icon text-slate-400 text-xl shrink-0 transition-transform duration-200">expand_more</span>
+            </summary>
+            <div class="px-3 pb-3 pt-0 border-t border-slate-200/80 dark:border-slate-700/80">
+              <div class="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400 space-y-2.5 pt-2.5">
+                <p><strong class="text-slate-800 dark:text-slate-200">1. Source</strong> — Add a channel or group where posts come from. The bot must already be added there. Use the <strong class="text-slate-800 dark:text-slate-200">+</strong> flow to verify and save the source.</p>
+                <p><strong class="text-slate-800 dark:text-slate-200">2. Destinations</strong> — Open your source, then add one or more destination groups/channels and choose a <strong class="text-slate-800 dark:text-slate-200">target language</strong> (or “No translation” to forward without translating).</p>
+                <p><strong class="text-slate-800 dark:text-slate-200">3. Options</strong> — <strong class="text-slate-800 dark:text-slate-200">Translate text in images</strong> (OCR + image render; experimental). <strong class="text-slate-800 dark:text-slate-200">Translate poll</strong> posts a new translated poll (votes are separate). <strong class="text-slate-800 dark:text-slate-200">Never translate these words</strong> keeps brands and names unchanged. Toggle rules per destination; use the dashboard switches to pause a whole source or a single pair.</p>
+                <p><strong class="text-slate-800 dark:text-slate-200">Costs (default)</strong> — <strong class="text-slate-800 dark:text-slate-200">1¢</strong> per translated text message; <strong class="text-slate-800 dark:text-slate-200">10¢</strong> per image when image translation is on and that image is processed. Buy and track balance under <strong class="text-slate-800 dark:text-slate-200">Account</strong> (header shows your balance).</p>
+                <p class="pt-0.5"><strong class="text-slate-800 dark:text-slate-200">Support</strong> — <a href="mailto:MLabs.TranslatorBot@gmail.com" class="text-primary font-medium underline underline-offset-2">MLabs.TranslatorBot@gmail.com</a></p>
+              </div>
+            </div>
+          </details>
+        </div>
+      </header>
+      <main class="flex-1 p-2 px-3 pb-24">
+        <div class="mb-2 flex items-center justify-between">
+          <h2 class="text-base font-bold tracking-tight">Active Translation Pairs</h2>
+          <span id="badge-running" class="text-[10px] font-medium px-1.5 py-0.5 bg-slate-200 dark:bg-slate-800 rounded-full">0 Running</span>
+        </div>
+        <div id="pair-cards" class="space-y-2"></div>
+      </main>
+    </div>
+
+    <!-- View 2: Add / Edit Source (one interface) -->
+    <div id="view-add-source" class="view hidden flex flex-col">
+      <header class="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-center px-3 py-2.5 justify-between">
+          <button type="button" id="add-source-back" class="text-primary flex size-9 items-center justify-center cursor-pointer hover:bg-primary/10 rounded-full"><span class="material-symbols-outlined text-[22px]">arrow_back</span></button>
+          <h2 id="add-source-title" class="text-base font-bold leading-tight tracking-tight flex-1 text-center pr-9">Add New Source</h2>
+        </div>
+      </header>
+      <main class="max-w-2xl mx-auto w-full px-3 pt-2 pb-20">
+        <section class="space-y-3">
+          <div class="space-y-1">
+            <h3 class="text-lg font-bold leading-snug">Channel details</h3>
+            <p class="text-slate-600 dark:text-slate-400 text-sm leading-snug">Telegram link, @username, or numeric channel ID (bot must already be in the channel).</p>
+          </div>
+          <div class="space-y-2.5">
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none"><span class="material-symbols-outlined text-slate-400 text-[20px]">link</span></div>
+              <input id="source-input" class="block w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none" placeholder="t.me/…, @name, or ID" type="text" autocomplete="off"/>
+            </div>
+            <div id="source-error" class="hidden text-xs text-red-500 dark:text-red-400" role="alert"></div>
+            <button type="button" id="btn-verify-source" class="w-full bg-primary hover:bg-primary/90 disabled:pointer-events-none text-white text-sm font-semibold py-2.5 rounded-lg shadow-md shadow-primary/15 flex items-center justify-center gap-2 transition-[transform,opacity] active:scale-[0.98]">
+              <span id="btn-verify-icon" class="material-symbols-outlined text-[20px]">verified</span>
+              <span id="btn-verify-label">Verify Source</span>
+              <span id="btn-verify-spinner" class="hidden size-5 shrink-0 rounded-full border-2 border-white/35 border-t-white animate-spin" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div id="source-preview" class="pt-2 space-y-2.5 hidden">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1.5">
+              <h4 class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">Preview</h4>
+              <span id="source-preview-status" class="flex items-center gap-0.5 text-emerald-500 text-[10px] font-semibold"><span class="material-symbols-outlined text-sm">check_circle</span> Verified</span>
+            </div>
+            <div id="source-preview-card" class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden p-3 text-sm"></div>
+            <button type="button" id="btn-add-source-submit" class="w-full bg-primary hover:bg-primary/90 text-white text-sm font-bold py-2.5 rounded-lg shadow-md shadow-primary/15 flex items-center justify-center gap-2">Add Source</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- View 3: Pair Destination -->
+    <div id="view-pair-dest" class="view hidden flex flex-col min-h-screen">
+      <header class="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-center p-4">
+          <button type="button" id="pair-dest-back" class="text-slate-900 dark:text-slate-100 flex size-10 shrink-0 items-center justify-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><span class="material-symbols-outlined">arrow_back</span></button>
+          <div class="ml-4 flex-1">
+            <h2 class="text-lg font-bold leading-tight">Pair Destination</h2>
+            <p id="pair-dest-source-label" class="text-xs text-slate-500 dark:text-slate-400">Source: —</p>
+          </div>
+        </div>
+      </header>
+      <main class="flex-1 overflow-y-auto pb-24">
+        <div class="px-4 pt-6 pb-2">
+          <h3 class="text-base font-bold flex items-center gap-2"><span class="material-symbols-outlined text-primary text-xl">hub</span> Channel Settings</h3>
+        </div>
+        <div class="px-4 py-3">
+          <label class="flex flex-col w-full">
+            <p class="text-slate-600 dark:text-slate-400 text-sm font-medium pb-2">Select Destination Channel/Group</p>
+            <select id="pair-dest-select" class="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 h-14 pl-4 pr-10 focus:border-primary focus:ring-primary">
+              <option value="">Choose a destination...</option>
+            </select>
+          </label>
+        </div>
+        <div class="h-px bg-slate-100 dark:bg-slate-800 mx-4 my-4"></div>
+        <div class="px-4 py-2">
+          <h3 class="text-base font-bold flex items-center gap-2"><span class="material-symbols-outlined text-primary text-xl">translate</span> Language Pairing</h3>
+        </div>
+        <div class="px-4 py-4">
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider pb-2">Target language</p>
+          <select id="pair-dest-lang" class="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 h-12 pl-4 pr-10">
+            <option value="none">No translation</option>
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="it">Italian</option>
+            <option value="pt">Portuguese</option>
+            <option value="ru">Russian</option>
+            <option value="zh">Chinese</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="uk">Ukrainian</option>
+            <option value="tr">Turkish</option>
+            <option value="ar">Arabic</option>
+            <option value="hi">Hindi</option>
+          </select>
+        </div>
+        <div class="h-px bg-slate-100 dark:bg-slate-800 mx-4 my-4"></div>
+        <div class="px-4 py-2">
+          <h3 class="text-base font-bold flex items-center gap-2"><span class="material-symbols-outlined text-primary text-xl">settings_suggest</span> Translation Options</h3>
+        </div>
+        <div class="px-4 py-4 space-y-4">
+          <label class="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-950/40 rounded-xl border border-red-200 dark:border-red-900/80 cursor-pointer">
+            <input id="pair-dest-translate-images" class="mt-1 w-5 h-5 rounded border-red-300 dark:border-red-700 text-primary focus:ring-primary shrink-0" type="checkbox"/>
+            <div class="flex flex-col gap-1 min-w-0">
+              <span class="text-sm font-semibold text-red-900 dark:text-red-100">Translate text in images</span>
+              <span class="text-xs text-red-800/90 dark:text-red-200/90 leading-relaxed">OCR and translate text inside photos. Each translated image costs 10¢.</span>
+              <span class="text-xs text-red-800/90 dark:text-red-200/90 leading-relaxed">Experimental: translation aims to be intelligent and leave text unchanged when it should not be translated (e.g. street names, road signs).</span>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800 cursor-pointer">
+            <input id="pair-dest-translate-poll" class="mt-1 w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/>
+            <div class="flex flex-col">
+              <span class="text-sm font-semibold">Translate poll</span>
+              <span class="text-xs text-amber-700 dark:text-amber-300 mt-0.5">When enabled, the poll is translated and posted as a new poll. Votes are independent and do not affect the original.</span>
+            </div>
+          </label>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-100 dark:border-slate-800">
+          <button type="button" id="btn-save-pair" class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined">save</span> Save Pair Configuration
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <!-- View 4: Logs -->
+    <div id="view-logs" class="view hidden flex flex-col min-h-screen">
+      <header class="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-center p-4">
+          <button type="button" id="logs-back" class="text-slate-900 dark:text-slate-100 flex size-10 shrink-0 items-center justify-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><span class="material-symbols-outlined">arrow_back</span></button>
+          <h2 class="text-lg font-bold leading-tight flex-1 ml-4">Translation Logs</h2>
+        </div>
+      </header>
+      <main class="flex-1 overflow-y-auto p-4 pb-24">
+        <div id="logs-list" class="space-y-3"></div>
+      </main>
+    </div>
+
+    <!-- View 5: Account -->
+    <div id="view-account" class="view hidden flex flex-col min-h-screen">
+      <header class="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-center p-4">
+          <button type="button" id="account-back" class="text-slate-900 dark:text-slate-100 flex size-10 shrink-0 items-center justify-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><span class="material-symbols-outlined">arrow_back</span></button>
+          <h2 class="text-lg font-bold leading-tight flex-1 ml-4">Account</h2>
+        </div>
+      </header>
+      <main class="flex-1 overflow-y-auto p-4 pb-24">
+        <div class="mb-4 rounded-xl p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20">
+          <p class="text-slate-600 dark:text-slate-300 text-xs font-medium uppercase tracking-wider">Balance</p>
+          <p id="account-credits" class="text-2xl font-bold text-primary">— USD</p>
+          <p id="account-credits-breakdown" class="text-xs text-slate-500 dark:text-slate-400 mt-2 tabular-nums"></p>
+        </div>
+        <div class="mb-4 rounded-xl p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <p class="text-slate-600 dark:text-slate-300 text-xs font-medium uppercase tracking-wider mb-1">Buy credits</p>
+          <p class="text-sm text-slate-600 dark:text-slate-400 mb-3">Pay with Stripe (card, Apple Pay, etc.). Credits are added after Stripe confirms payment—usually within seconds.</p>
+          <div class="grid grid-cols-3 gap-2 mb-3">
+            <button type="button" class="btn-buy-pack w-full py-3 rounded-xl border border-primary text-primary font-semibold hover:bg-primary/10 transition-colors text-sm" data-price-key="pack_5">$5</button>
+            <button type="button" class="btn-buy-pack w-full py-3 rounded-xl border border-primary text-primary font-semibold hover:bg-primary/10 transition-colors text-sm" data-price-key="pack_10">$10</button>
+            <button type="button" class="btn-buy-pack w-full py-3 rounded-xl border border-primary text-primary font-semibold hover:bg-primary/10 transition-colors text-sm" data-price-key="pack_20">$20</button>
+          </div>
+          <div id="billing-ledger-block" class="border-t border-slate-200 dark:border-slate-700 pt-3 mt-1">
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Recent activity</p>
+            <ul id="billing-ledger-list" class="text-sm text-slate-600 dark:text-slate-400 space-y-1"></ul>
+          </div>
+        </div>
+        <div class="mb-4">
+          <p class="text-slate-600 dark:text-slate-300 text-xs font-medium uppercase tracking-wider mb-2">Theme</p>
+          <div class="flex rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+            <button type="button" id="theme-light" class="theme-btn flex-1 py-3 text-sm font-medium transition-colors border-r border-slate-200 dark:border-slate-700" data-theme="light">Light</button>
+            <button type="button" id="theme-dark" class="theme-btn flex-1 py-3 text-sm font-medium transition-colors border-r border-slate-200 dark:border-slate-700" data-theme="dark">Dark</button>
+            <button type="button" id="theme-system" class="theme-btn flex-1 py-3 text-sm font-medium transition-colors" data-theme="system">System</button>
+          </div>
+        </div>
+        <label class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all">
+          <div class="flex flex-col">
+            <span class="text-sm font-semibold">Receive translation reports in Telegram</span>
+            <span class="text-xs text-slate-500">Get a report after each translation with links to the source and each translated message.</span>
+          </div>
+          <input id="account-receive-reports" class="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/>
+        </label>
+        <div class="mt-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+          <p class="text-slate-600 dark:text-slate-300 text-xs font-medium uppercase tracking-wider mb-2">Spam protection</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Pause translation from a source when too many messages arrive in a time window.</p>
+          <label class="flex items-center gap-3 mb-3 cursor-pointer">
+            <input id="account-spam-protection-enabled" class="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/>
+            <span class="text-sm font-medium">Enable spam protection</span>
+          </label>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Max messages</label>
+              <input id="account-spam-max-messages" type="number" min="1" max="1000" class="block w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 h-10 px-3 text-sm"/>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Within (minutes)</label>
+              <input id="account-spam-window-minutes" type="number" min="1" max="1440" class="block w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 h-10 px-3 text-sm"/>
+            </div>
+          </div>
+        </div>
+        <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">
+          Operator console (browser): <a href="/admin.html" class="text-primary font-medium underline" target="_blank" rel="noopener">/admin.html</a>
+        </p>
+      </main>
+    </div>
+
+    <!-- Edit Rule (Destination) Modal -->
+    <div id="modal-edit-rule" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/50 p-4" aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="w-full max-w-md rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-4">
+        <h3 class="text-lg font-bold mb-4">Edit Destination</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Destination</label>
+            <select id="edit-rule-dest" class="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 h-12 pl-4 pr-10 focus:border-primary focus:ring-primary"></select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Target language</label>
+            <select id="edit-rule-lang" class="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 h-12 pl-4 pr-10 focus:border-primary focus:ring-primary">
+              <option value="none">No translation</option>
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="it">Italian</option>
+              <option value="pt">Portuguese</option>
+              <option value="ru">Russian</option>
+              <option value="zh">Chinese</option>
+              <option value="ja">Japanese</option>
+              <option value="ko">Korean</option>
+              <option value="uk">Ukrainian</option>
+              <option value="tr">Turkish</option>
+              <option value="ar">Arabic</option>
+              <option value="hi">Hindi</option>
+            </select>
+          </div>
+          <label class="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-950/40 rounded-xl border border-red-200 dark:border-red-900/80 cursor-pointer">
+            <input id="edit-rule-translate-images" type="checkbox" class="mt-1 w-5 h-5 rounded border-red-300 dark:border-red-700 text-primary focus:ring-primary shrink-0"/>
+            <div class="flex flex-col gap-1 min-w-0">
+              <span class="text-sm font-semibold text-red-900 dark:text-red-100">Translate text in images</span>
+              <span class="text-xs text-red-800/90 dark:text-red-200/90 leading-relaxed">OCR and translate text inside photos. Each translated image costs 10¢.</span>
+              <span class="text-xs text-red-800/90 dark:text-red-200/90 leading-relaxed">Experimental: translation aims to be intelligent and leave text unchanged when it should not be translated (e.g. street names, road signs).</span>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+            <input id="edit-rule-translate-poll" type="checkbox" class="mt-1 w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary"/>
+            <div class="flex flex-col">
+              <span class="text-sm font-medium">Translate poll</span>
+              <span class="text-xs text-amber-700 dark:text-amber-300 mt-0.5">When enabled, the poll is translated and posted as a new poll. Votes are independent and do not affect the original.</span>
+            </div>
+          </label>
+        </div>
+        <div class="flex gap-2 mt-6">
+          <button type="button" id="edit-rule-cancel" class="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
+          <button type="button" id="edit-rule-save" class="flex-1 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="fixed bottom-0 left-0 right-0 flex border-t border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-background-dark/90 backdrop-blur-md px-4 pb-6 pt-3">
+      <button type="button" data-view="dashboard" class="nav-btn flex flex-1 flex-col items-center justify-center gap-1 text-primary">
+        <span class="material-symbols-outlined">dashboard</span>
+        <p class="text-[10px] font-bold uppercase tracking-wider">Pairs</p>
+      </button>
+      <button type="button" data-view="logs" class="nav-btn flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500">
+        <span class="material-symbols-outlined">history</span>
+        <p class="text-[10px] font-bold uppercase tracking-wider">Logs</p>
+      </button>
+      <button type="button" data-view="account" class="nav-btn flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500">
+        <span class="material-symbols-outlined">account_circle</span>
+        <p class="text-[10px] font-bold uppercase tracking-wider">Account</p>
+      </button>
+    </nav>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

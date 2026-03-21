@@ -1,0 +1,15 @@
+services:
+  translator:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////app/data/bot.db
+    volumes:
+      - translator_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  translator_data:

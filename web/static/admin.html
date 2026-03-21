@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Operator console</title>
+  <link rel="stylesheet" href="/admin.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="login-screen">
+    <div class="login-box">
+      <h1>Operator console</h1>
+      <p style="margin:0;color:var(--muted);font-size:12px;">Backend command center — authenticate to proceed.</p>
+      <form id="login-form">
+        <input type="password" id="login-password" autocomplete="current-password" placeholder="Password" required />
+        <button type="submit">Enter</button>
+        <div id="login-err" class="err" role="alert"></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <header class="cmd-header">
+      <div>
+        <div class="title">Translator · OPS</div>
+        <div id="header-status" class="status">STANDBY</div>
+      </div>
+      <div class="status" id="clock-line"></div>
+      <button type="button" id="btn-logout">Logout</button>
+    </header>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>Live telemetry</h2>
+        <div id="stats-telemetry"></div>
+      </div>
+      <div class="panel">
+        <h2>Financial (estimated)</h2>
+        <div id="stats-financial"></div>
+        <p style="margin:0.5rem 0 0;font-size:10px;color:var(--muted);">Revenue = successful translation charges. Provider cost is manual until usage logging exists.</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <h2>Live stream</h2>
+        <div id="live-feed" class="live-feed"></div>
+      </div>
+      <div class="panel">
+        <h2>System limits &amp; pricing</h2>
+        <div class="toolbar">
+          <button type="button" class="primary" id="btn-save-settings">Save settings</button>
+        </div>
+        <label style="color:var(--muted);font-size:11px;">Max pairs</label>
+        <input type="number" id="set-max-pairs" min="1" max="100" style="width:100%;margin-bottom:0.5rem;padding:0.45rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;" />
+        <label style="color:var(--muted);font-size:11px;">Max destinations / source</label>
+        <input type="number" id="set-max-dest" min="1" max="100" style="width:100%;margin-bottom:0.5rem;padding:0.45rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;" />
+        <label style="color:var(--muted);font-size:11px;">Max message length</label>
+        <input type="number" id="set-max-len" min="256" max="4096" style="width:100%;margin-bottom:0.5rem;padding:0.45rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;" />
+        <label style="color:var(--muted);font-size:11px;">Text translation price (USD)</label>
+        <input type="number" id="set-price-text" min="0" step="0.01" style="width:100%;margin-bottom:0.5rem;padding:0.45rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;" />
+        <label style="color:var(--muted);font-size:11px;">Image translation price (USD per image)</label>
+        <input type="number" id="set-price-image" min="0" step="0.01" style="width:100%;margin-bottom:0.5rem;padding:0.45rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;" />
+        <label style="color:var(--muted);font-size:11px;">Manual provider balance (USD)</label>
+        <input type="number" id="set-provider-bal" step="0.01" style="width:100%;margin-bottom:0.5rem;padding:0.45rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;" />
+        <label style="color:var(--muted);font-size:11px;">Manual monthly provider cost (USD)</label>
+        <input type="number" id="set-provider-cost" step="0.01" style="width:100%;padding:0.45rem;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;" />
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:1rem;">
+      <h2>Clients</h2>
+      <div class="toolbar">
+        <input type="search" id="client-q" placeholder="Search id or @username" />
+        <button type="button" id="btn-clients-refresh">Refresh</button>
+      </div>
+      <div style="overflow:auto;">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>User</th>
+              <th>Free $</th>
+              <th>Paid $</th>
+              <th>Total $</th>
+              <th>Resv</th>
+              <th>Rules</th>
+              <th>Blocked</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="clients-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Whitelist (authorized senders)</h2>
+      <div class="toolbar">
+        <input type="number" id="wl-tid" placeholder="Telegram ID" />
+        <input type="text" id="wl-user" placeholder="Username (optional)" />
+        <button type="button" class="primary" id="btn-wl-add">Add</button>
+      </div>
+      <div id="whitelist-box" class="whitelist-list"></div>
+    </div>
+  </div>
+
+  <div id="modal-telemetry" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal wide">
+      <h3 id="telemetry-modal-title">Telemetry detail</h3>
+      <p id="telemetry-modal-desc" style="margin:0;font-size:11px;color:var(--muted);"></p>
+      <div id="telemetry-modal-body" class="modal-scroll"></div>
+      <div class="actions" style="margin-top:0.75rem;">
+        <button type="button" id="telemetry-modal-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-adjust" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal">
+      <h3>Free credit adjustment</h3>
+      <p id="modal-adjust-user" style="margin:0;color:var(--muted);font-size:12px;"></p>
+      <p style="margin:0.5rem 0 0;font-size:11px;color:var(--muted);">Adds or removes <b>free</b> credit only (promo / support). Paid balance comes from Stripe only. Usage always draws free first.</p>
+      <label>Amount (USD) — positive adds free credit, negative removes (free first, then paid)</label>
+      <input type="number" id="adj-usd" step="0.01" value="1.00" />
+      <label>Reason</label>
+      <input type="text" id="adj-reason" placeholder="reimbursement, bonus, adjustment" />
+      <label>Note (optional)</label>
+      <textarea id="adj-note" rows="2"></textarea>
+      <div class="actions">
+        <button type="button" id="adj-cancel">Cancel</button>
+        <button type="button" class="submit" id="adj-submit">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+Regenerate this image: replace only text that is already visible in the image with text written in {target_language_label}.
+Do not add any text that were not present in the original image. Do not invent or overlay new text.
+Do not translate any signs, logos with text, watermarks, environemental objects like street sings.
+Ignore pure abstract shapes or textures with no letters.
+{excluded_instruction} Output only the new image.

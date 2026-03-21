@@ -1,0 +1,3 @@
+Does this image contain any readable text (words in any language), excluding signs, logos with text, watermarks, environemental objects like street sings? Ignore pure abstract shapes or textures with no letters.
+
+Answer with exactly one word: YES or NO.
