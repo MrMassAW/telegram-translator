@@ -4,6 +4,8 @@ Consumption: free first, then paid. Reserved applies to total.
 """
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+
 from database.models import UserCredits
 
 # USD pricing defaults when rates not passed (stored in cents)
@@ -58,26 +60,43 @@ def deduct_paid_first(uc: UserCredits, amount_cents: int) -> None:
 async def ensure_user(session: AsyncSession, telegram_id: int, username: str | None = None) -> UserCredits:
     """Get or create user credits row. New users receive $1.00 (100 cents) in free balance only."""
     stmt = select(UserCredits).where(UserCredits.telegram_id == telegram_id)
-    result = await session.execute(stmt)
-    user = result.scalar_one_or_none()
-    if user is None:
-        user = UserCredits(
-            telegram_id=telegram_id,
-            username=username,
-            balance=NEW_USER_FREE_CENTS,
-            free_balance_cents=NEW_USER_FREE_CENTS,
-            paid_balance_cents=0,
-            currency="USD",
-            receive_reports_telegram=True,
-            blocked=False,
-        )
-        session.add(user)
+
+    async def _fetch() -> UserCredits | None:
+        r = await session.execute(stmt)
+        return r.scalar_one_or_none()
+
+    user = await _fetch()
+    if user is not None:
+        if username and user.username != username:
+            user.username = username
+            await session.commit()
+            await session.refresh(user)
+        return user
+
+    user = UserCredits(
+        telegram_id=telegram_id,
+        username=username,
+        balance=NEW_USER_FREE_CENTS,
+        free_balance_cents=NEW_USER_FREE_CENTS,
+        paid_balance_cents=0,
+        currency="USD",
+        receive_reports_telegram=True,
+        blocked=False,
+    )
+    session.add(user)
+    try:
         await session.commit()
         await session.refresh(user)
-    elif username and user.username != username:
-        user.username = username
-        await session.commit()
-        await session.refresh(user)
+    except IntegrityError:
+        # Concurrent first requests: another worker inserted the same telegram_id first.
+        await session.rollback()
+        user = await _fetch()
+        if user is None:
+            raise
+        if username and user.username != username:
+            user.username = username
+            await session.commit()
+            await session.refresh(user)
     return user
 
 

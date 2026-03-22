@@ -1,6 +1,28 @@
 const tg = window.Telegram?.WebApp || {};
 if (tg.expand) tg.expand();
 
+function hasTelegramIdentity() {
+  const d = tg.initData;
+  return typeof d === 'string' && d.trim().length > 0;
+}
+
+/** Replace main UI when opened outside Telegram (no signed initData). */
+function showTelegramRequiredGate() {
+  const app = document.getElementById('app');
+  if (!app) return;
+  app.innerHTML = `
+    <div class="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100">
+      <div class="max-w-sm space-y-4">
+        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white">
+          <span class="material-symbols-outlined text-3xl">lock</span>
+        </div>
+        <h1 class="text-lg font-bold">Open in Telegram</h1>
+        <p class="text-sm text-slate-600 dark:text-slate-400">This mini app only works inside Telegram with your account. Open it from the bot&apos;s <strong class="text-slate-800 dark:text-slate-200">Open</strong> button or menu link.</p>
+        <p class="text-xs text-slate-500 dark:text-slate-500">A regular browser cannot access your translation settings.</p>
+      </div>
+    </div>`;
+}
+
 const THEME_KEY = 'app-theme';
 let systemThemeListener = null;
 
@@ -246,11 +268,20 @@ function showView(name) {
 
 async function init() {
   try {
-    if (tg.initData) {
-      try {
-        const res = await fetch(API_BASE + '/validate-init-data', { method: 'POST', headers: apiHeaders(), body: JSON.stringify({ initData: tg.initData }) });
-        if (!res.ok) { document.body.innerHTML = '<h1 class="p-8">Unauthorized</h1>'; return; }
-      } catch (e) { document.body.innerHTML = '<h1 class="p-8">Error connecting to server</h1>'; return; }
+    if (!hasTelegramIdentity()) {
+      showTelegramRequiredGate();
+      return;
+    }
+    if (tg.ready) tg.ready();
+    try {
+      const res = await fetch(API_BASE + '/validate-init-data', { method: 'POST', headers: apiHeaders(), body: JSON.stringify({ initData: tg.initData }) });
+      if (!res.ok) {
+        document.body.innerHTML = '<div class="min-h-screen flex items-center justify-center p-8 bg-background-light dark:bg-background-dark"><h1 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Unauthorized</h1></div>';
+        return;
+      }
+    } catch (e) {
+      document.body.innerHTML = '<div class="min-h-screen flex items-center justify-center p-8 bg-background-light dark:bg-background-dark"><h1 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Error connecting to server</h1></div>';
+      return;
     }
     await Promise.all([loadRules(), loadSources(), loadExcludedTerms(), loadChatsWithAccess(), loadCredits(), loadSettings(), loadLimits()]);
     bindEvents();

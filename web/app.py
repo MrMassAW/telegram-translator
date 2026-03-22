@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -48,6 +49,12 @@ app.include_router(admin_router, prefix="/api")
 async def health():
     """Lightweight readiness check for load balancers (e.g. DigitalOcean App Platform)."""
     return {"status": "ok"}
+
+
+@app.get("/admin")
+async def admin_shortcut():
+    """Browser-friendly alias; static file lives at /admin.html."""
+    return RedirectResponse(url="/admin.html", status_code=307)
 
 
 # Static Files (Frontend)
