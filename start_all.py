@@ -23,10 +23,10 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     logger = logging.getLogger(__name__)
 
-    # Start web app in a background thread (so ngrok can reach it)
+    # Start web app in a background thread; bind 0.0.0.0:8000 for Docker / reverse proxies
     web_thread = threading.Thread(target=run_web, daemon=True)
     web_thread.start()
-    logger.info("Web app starting on http://localhost:8000/ (use ngrok to expose it)")
+    logger.info("Web app listening on 0.0.0.0:8000 (set WEB_APP_URL to your public HTTPS base URL)")
 
     # Run bot in main thread
     try:

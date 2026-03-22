@@ -1,0 +1,31 @@
+# DigitalOcean App Platform — import or merge in the control panel.
+# Replace github.repo with your GitHub org/user and repository name.
+
+name: telegram-translator
+region: nyc
+
+services:
+  - name: translator
+    dockerfile_path: Dockerfile
+    source_dir: /
+    github:
+      repo: YOUR_GITHUB_USER_OR_ORG/telegram-translator
+      branch: main
+      deploy_on_push: true
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 60
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 9
+    # Optional: attach a persistent volume in the UI named sqlite-data, then uncomment:
+    # volumes:
+    #   - name: sqlite-data
+    #     mount_path: /app/data
+
+# If you use the volume above, define it at the app level in the DO UI or add a matching
+# volume resource per https://docs.digitalocean.com/products/app-platform/how-to/add-volume/

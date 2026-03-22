@@ -13,8 +13,6 @@ SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "").lower() in ("1", 
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
-ADMIN_ID = os.getenv("ADMIN_ID")
 WEB_APP_URL = os.getenv("WEB_APP_URL")
 
 # Stripe (optional; billing endpoints return 503 if secret key missing)

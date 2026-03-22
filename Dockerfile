@@ -3,7 +3,8 @@ FROM python:3.12-slim-bookworm
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    DATABASE_URL=sqlite+aiosqlite:////app/data/bot.db
 
 RUN mkdir -p /app/data
 

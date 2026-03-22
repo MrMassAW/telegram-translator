@@ -43,6 +43,13 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(admin_router, prefix="/api")
 
+
+@app.get("/health")
+async def health():
+    """Lightweight readiness check for load balancers (e.g. DigitalOcean App Platform)."""
+    return {"status": "ok"}
+
+
 # Static Files (Frontend)
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
